@@ -3,6 +3,7 @@ import { Play, Eye, ThumbsUp, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router';
 import { Video } from '../types';
 import { formatNumber } from '../utils';
+import { OptimizedImage } from './OptimizedImage';
 
 interface VideoCardProps {
   video: Video;
@@ -19,12 +20,11 @@ export function VideoCard({ video }: VideoCardProps) {
   return (
     <article className="flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
       <Link to={`/video/${video.slug ? video.slug + '-' : ''}${video.id}`} className="relative aspect-video bg-gray-100 group block">
-        <img 
-          src={video.thumbnail} 
-          alt={`Ảnh bìa video: ${video.title}`} 
+        <OptimizedImage 
+          videoId={video.id}
+          title={`Ảnh bìa video: ${video.title}`}
+          fallbackSrc={video.thumbnail}
           className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
         />
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="bg-red-600 text-white p-4 rounded-full shadow-lg transform group-hover:scale-110 transition-transform duration-300">

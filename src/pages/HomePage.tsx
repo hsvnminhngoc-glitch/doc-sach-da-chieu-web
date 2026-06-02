@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { AlertCircle, Loader2, Search } from 'lucide-react';
+import { AlertCircle, Loader2, Search, ArrowUp } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { Video } from '../types';
 import { VideoCard } from '../components/VideoCard';
@@ -12,6 +12,8 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(9); // Số video hiển thị ban đầu
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
     async function fetchVideos() {
@@ -32,6 +34,11 @@ export function HomePage() {
 
     fetchVideos();
   }, []);
+
+  // Reset filter display count when category or search changes
+  useEffect(() => {
+    setVisibleCount(9);
+  }, [activeCategory, searchQuery]);
 
   const filteredVideos = useMemo(() => {
     let result = videos;
@@ -56,6 +63,52 @@ export function HomePage() {
 
     return result;
   }, [videos, activeCategory, searchQuery]);
+
+  const visibleVideos = filteredVideos.slice(0, visibleCount);
+
+  // Intersection Observer for infinite scrolling
+  const observerTarget = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && visibleCount < filteredVideos.length) {
+          setVisibleCount(prev => prev + 6);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [observerTarget, visibleCount, filteredVideos.length]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   const origin = 'https://docsachdachieu.com';
 
@@ -189,7 +242,7 @@ export function HomePage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredVideos.map((video, index) => (
+            {visibleVideos.map((video, index) => (
               <motion.div
                 key={video.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -200,6 +253,12 @@ export function HomePage() {
               </motion.div>
             ))}
           </div>
+
+          {visibleCount < filteredVideos.length && (
+            <div ref={observerTarget} className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          )}
 
           {filteredVideos.length === 0 && (
             <div className="bg-white rounded-xl border border-gray-200 text-center py-20 flex flex-col items-center shadow-sm">
@@ -217,6 +276,21 @@ export function HomePage() {
             </div>
           )}
         </section>
+      )}
+
+      {/* Nút Lên đầu trang */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 p-3 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 hover:scale-110 transition-all duration-300 z-50 group"
+          aria-label="Lên đầu trang"
+        >
+          <ArrowUp className="w-5 h-5" />
+          <span className="absolute bottom-full right-1/2 transform translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
+            Lên đầu trang
+            <span className="absolute top-full left-1/2 transform -translate-x-1/2 border-[5px] border-transparent border-t-gray-800"></span>
+          </span>
+        </button>
       )}
     </div>
   );

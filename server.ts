@@ -32,7 +32,7 @@ function generateSlug(text: string) {
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Simple in-memory cache to avoid hitting YouTube API limits
   let videoCache: any = null;
@@ -124,11 +124,11 @@ async function startServer() {
     });
     const deduplicatedVideos = Array.from(uniqueVideosMap.values());
 
-    // Fetch statistics for these videos in chunks of 50
+    // Fetch statistics and snippet (for tags) for these videos in chunks of 50
     const videoIds = deduplicatedVideos.map(v => v.id);
     for (let i = 0; i < videoIds.length; i += 50) {
        const chunk = videoIds.slice(i, i + 50);
-       const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${chunk.join(',')}&key=${apiKey}`);
+       const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${chunk.join(',')}&key=${apiKey}`);
        const statsData = await statsResponse.json();
        if (statsData.items) {
          for (const item of statsData.items) {
@@ -137,6 +137,9 @@ async function startServer() {
              video.viewCount = item.statistics?.viewCount || '0';
              video.likeCount = item.statistics?.likeCount || '0';
              video.commentCount = item.statistics?.commentCount || '0';
+             if (item.snippet && item.snippet.tags) {
+               video.tags = item.snippet.tags;
+             }
            }
          }
        }

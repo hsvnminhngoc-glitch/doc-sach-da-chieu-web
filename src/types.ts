@@ -6,6 +6,7 @@ export interface Video {
   thumbnail: string;
   publishedAt: string;
   playlistTitle?: string;
+  tags?: string[];
   viewCount?: string;
   likeCount?: string;
   commentCount?: string;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router';
 import { Helmet } from 'react-helmet-async';
-import { Loader2, AlertCircle, ArrowLeft, Calendar, Youtube, Eye, ThumbsUp, MessageSquare, ShoppingCart, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Calendar, Youtube, Eye, ThumbsUp, MessageSquare, ShoppingCart, ExternalLink, Share2, Check } from 'lucide-react';
 import { Video } from '../types';
 import { CATEGORIES } from '../constants';
 import { formatNumber } from '../utils';
@@ -18,6 +18,30 @@ export function VideoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const origin = 'https://docsachdachieu.com';
+
+  const handleShare = async () => {
+    if (!video) return;
+    const url = `${origin}/video/${video.slug ? video.slug + '-' : ''}${video.id}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: video.title,
+          text: 'Xem video review trên Đọc Sách Đa Chiều',
+          url: url,
+        });
+      } catch (err) {
+        console.error('Lỗi khi chia sẻ:', err);
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     async function fetchVideos() {
@@ -48,22 +72,60 @@ export function VideoDetailPage() {
     }
   }, [id]);
 
-  const { relatedNewVideos, popularVideos, currentCategories } = useMemo(() => {
-    if (!video || !allVideos.length) return { relatedNewVideos: [], popularVideos: [], currentCategories: [] };
+  const { relatedNewVideos, popularVideos, currentCategories, randomVideos } = useMemo(() => {
+    if (!video || !allVideos.length) return { relatedNewVideos: [], popularVideos: [], currentCategories: [], randomVideos: [] };
 
     // Determine current video's categories based on title & playlist
     const textToSearch = `${video.title} ${video.playlistTitle || ''}`.toLowerCase();
     let currentCategories = CATEGORIES.filter(c => c.id !== 'all' && c.keywords.some(k => textToSearch.includes(k.toLowerCase())));
     if (currentCategories.length === 0) currentCategories = [CATEGORIES[0]]; // fallback to 'all'
 
-    // Find other videos in the same categories
-    const sameCategoryVideos = allVideos.filter(v => {
-      if (v.id === video.id) return false;
-      const vText = `${v.title} ${v.playlistTitle || ''}`.toLowerCase();
-      // If 'all', any video counts 
-      if (currentCategories[0].id === 'all') return true;
-      return currentCategories.some(c => c.keywords.some(k => vText.includes(k.toLowerCase())));
-    });
+    // Find other videos using a simple scoring algorithm based on matching tags, playlist, and category
+    const scoredVideos = allVideos
+      .filter(v => v.id !== video.id)
+      .map(v => {
+        let score = 0;
+        
+        // 1. Tag overlap (highest priority)
+        if (video.tags && v.tags) {
+          const vTagsLower = v.tags.map(t => t.toLowerCase());
+          for (const tag of video.tags) {
+             if (vTagsLower.includes(tag.toLowerCase())) {
+                score += 3; // 3 points for each matching tag
+             }
+          }
+        }
+        
+        // 2. Same Playlist
+        if (video.playlistTitle && v.playlistTitle && video.playlistTitle === v.playlistTitle) {
+          score += 2;
+        }
+        
+        // 3. Category keywords overlap
+        const vText = `${v.title} ${v.playlistTitle || ''}`.toLowerCase();
+        if (currentCategories[0].id !== 'all') {
+           const matchesCategory = currentCategories.some(c => c.keywords.some(k => vText.includes(k.toLowerCase())));
+           if (matchesCategory) {
+              score += 1;
+           }
+        } else {
+           // Base score to include them if no other match and category is 'all'
+           score += 0.5;
+        }
+
+        return { video: v, score };
+      })
+      .filter(item => item.score > 0) // Keep videos that have some relation
+      .sort((a, b) => {
+        // Sort by score first
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        // If scores are equal, favor newer videos
+        return new Date(b.video.publishedAt).getTime() - new Date(a.video.publishedAt).getTime();
+      });
+
+    const sameCategoryVideos = scoredVideos.map(item => item.video);
 
     // Related new: sorted by date (already sorted by server), take 5
     const relatedNew = sameCategoryVideos.slice(0, 5);
@@ -74,7 +136,15 @@ export function VideoDetailPage() {
       .sort((a, b) => parseInt(b.viewCount || '0') - parseInt(a.viewCount || '0'))
       .slice(0, 4);
 
-    return { relatedNewVideos: relatedNew, popularVideos: popular, currentCategories };
+    let randomVideos: Video[] = [];
+    if (relatedNew.length < 5) {
+      const otherVideos = allVideos.filter(v => v.id !== video.id && !relatedNew.some(r => r.id === v.id));
+      // Shuffle array to get random videos
+      const shuffled = [...otherVideos].sort(() => 0.5 - Math.random());
+      randomVideos = shuffled.slice(0, 5);
+    }
+
+    return { relatedNewVideos: relatedNew, popularVideos: popular, currentCategories, randomVideos };
   }, [video, allVideos]);
 
   const affiliateLinks = useMemo(() => {
@@ -142,25 +212,36 @@ export function VideoDetailPage() {
     day: 'numeric'
   });
 
-  const origin = 'https://docsachdachieu.com';
+  const descriptionText = video.description?.replace(/\n/g, ' ').replace(/\s+/g, ' ').substring(0, 160).trim() || "Video review sách chi tiết, cùng bàn luận về những thông điệp và giá trị của cuốn sách này.";
+  const highResImage = `https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`;
+  const videoUrl = `${origin}/video/${video.slug ? video.slug + '-' : ''}${video.id}`;
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <Helmet>
         <title>{video.title} | Đọc Sách Đa Chiều</title>
-        <meta name="description" content={video.description?.substring(0, 160) || "Video review sách chi tiết, cùng bàn luận về những thông điệp và giá trị của cuốn sách này."} />
+        <meta name="description" content={descriptionText} />
+        
+        {/* OpenGraph Tags */}
         <meta property="og:title" content={`${video.title} | Đọc Sách Đa Chiều`} />
-        <meta property="og:description" content={video.description?.substring(0, 160) || "Video review sách chi tiết, cùng bàn luận về những thông điệp và giá trị của cuốn sách này."} />
-        <meta property="og:image" content={video.thumbnail} />
+        <meta property="og:description" content={descriptionText} />
+        <meta property="og:image" content={highResImage} />
+        <meta property="og:image:alt" content={video.title} />
         <meta property="og:image:width" content="1280" />
         <meta property="og:image:height" content="720" />
         <meta property="og:type" content="video.other" />
-        <meta property="og:url" content={`${origin}/video/${video.slug ? video.slug + '-' : ''}${video.id}`} />
+        <meta property="og:url" content={videoUrl} />
+        <meta property="og:site_name" content="Đọc Sách Đa Chiều" />
+        <meta property="article:published_time" content={video.publishedAt} />
+        
+        {/* Twitter Card Tags */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${video.title} | Đọc Sách Đa Chiều`} />
-        <meta name="twitter:description" content={video.description?.substring(0, 160) || "Video review sách chi tiết, cùng bàn luận về những thông điệp và giá trị của cuốn sách này."} />
-        <meta name="twitter:image" content={video.thumbnail} />
-        <link rel="canonical" href={`${origin}/video/${video.slug ? video.slug + '-' : ''}${video.id}`} />
+        <meta name="twitter:description" content={descriptionText} />
+        <meta name="twitter:image" content={highResImage} />
+        <meta name="twitter:image:alt" content={video.title} />
+        
+        <link rel="canonical" href={videoUrl} />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -245,15 +326,39 @@ export function VideoDetailPage() {
                 Xem trên YouTube
               </a>
               
-              {currentCategories && currentCategories.length > 0 && currentCategories[0].id !== 'all' && (
+              <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300"></div>
+              
+              <div className="relative group flex items-center">
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-1.5 font-medium text-gray-700 hover:text-red-600 transition-all p-1.5 -ml-1.5 rounded-md hover:bg-red-50"
+                  aria-label="Chia sẻ video"
+                >
+                  {isCopied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
+                  {isCopied ? <span className="text-green-600">Đã chép link</span> : 'Chia sẻ'}
+                </button>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-lg">
+                  {isCopied ? 'Đã chép URL!' : 'Copy link video'}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-[5px] border-transparent border-t-gray-800"></div>
+                </div>
+              </div>
+              
+              {/* Hiển thị badge danh mục, nếu không thuộc danh mục nào thì lấy tên playlist (nếu có) */}
+              {((currentCategories && currentCategories.length > 0 && currentCategories[0].id !== 'all') || video.playlistTitle) && (
                 <>
                   <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300"></div>
                   <div className="flex items-center gap-2">
-                    {currentCategories.map(cat => (
-                      <span key={cat.id} className="inline-flex py-1 px-2.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-100">
-                        {cat.name}
+                    {currentCategories[0].id !== 'all' ? (
+                      currentCategories.map(cat => (
+                        <span key={cat.id} className="inline-flex py-1 px-2.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-100">
+                          {cat.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="inline-flex py-1 px-2.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-100 uppercase text-[10px] tracking-wider">
+                        {video.playlistTitle || 'KIẾN THỨC'}
                       </span>
-                    ))}
+                    )}
                   </div>
                 </>
               )}
@@ -331,17 +436,30 @@ export function VideoDetailPage() {
              </div>
            )}
 
-           <div className="sticky top-24">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">Mới nhất cùng thể loại</h3>
-              {relatedNewVideos.length > 0 ? (
-                <div className="space-y-4">
-                  {relatedNewVideos.map(v => (
-                    <CompactVideoCard key={v.id} video={v} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-sm">Chưa có video nào khác.</p>
-              )}
+           <div className="sticky top-24 space-y-10">
+             <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Mới nhất cùng thể loại</h3>
+                {relatedNewVideos.length > 0 ? (
+                  <div className="space-y-4">
+                    {relatedNewVideos.map(v => (
+                      <CompactVideoCard key={v.id} video={v} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Chưa có video nào cùng thể loại.</p>
+                )}
+             </div>
+             
+             {randomVideos.length > 0 && (
+               <div>
+                 <h3 className="text-xl font-bold text-gray-900 mb-6">Video ngẫu nhiên</h3>
+                 <div className="space-y-4">
+                   {randomVideos.map(v => (
+                     <CompactVideoCard key={v.id} video={v} />
+                   ))}
+                 </div>
+               </div>
+             )}
            </div>
         </div>
       </div>

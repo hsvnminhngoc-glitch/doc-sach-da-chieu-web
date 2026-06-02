@@ -2,6 +2,7 @@ import React from 'react';
 import { Play } from 'lucide-react';
 import { Link } from 'react-router';
 import { Video } from '../types';
+import { OptimizedImage } from './OptimizedImage';
 
 export function CompactVideoCard({ video }: { video: Video }) {
   const date = new Date(video.publishedAt).toLocaleDateString('vi-VN', {
@@ -12,12 +13,11 @@ export function CompactVideoCard({ video }: { video: Video }) {
   return (
     <Link to={`/video/${video.slug ? video.slug + '-' : ''}${video.id}`} className="group flex gap-3 block hover:bg-gray-50 p-2 rounded-lg transition-colors -mx-2">
       <div className="relative w-28 md:w-32 aspect-video bg-gray-100 rounded-lg overflow-hidden shrink-0">
-        <img 
-          src={video.thumbnail} 
-          alt={video.title} 
+        <OptimizedImage 
+          videoId={video.id}
+          title={video.title}
+          fallbackSrc={video.thumbnail}
           className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
         />
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
            <Play className="w-6 h-6 fill-white text-white" />
