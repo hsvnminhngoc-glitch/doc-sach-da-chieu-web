@@ -1,0 +1,36 @@
+import React from 'react';
+import { Play } from 'lucide-react';
+import { Link } from 'react-router';
+import { Video } from '../types';
+
+export function CompactVideoCard({ video }: { video: Video }) {
+  const date = new Date(video.publishedAt).toLocaleDateString('vi-VN', {
+    month: 'short',
+    day: 'numeric'
+  });
+
+  return (
+    <Link to={`/video/${video.slug ? video.slug + '-' : ''}${video.id}`} className="group flex gap-3 block hover:bg-gray-50 p-2 rounded-lg transition-colors -mx-2">
+      <div className="relative w-28 md:w-32 aspect-video bg-gray-100 rounded-lg overflow-hidden shrink-0">
+        <img 
+          src={video.thumbnail} 
+          alt={video.title} 
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+           <Play className="w-6 h-6 fill-white text-white" />
+        </div>
+      </div>
+      <div className="flex flex-col py-1">
+        <h4 className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight group-hover:text-red-600 transition-colors mb-1">
+          {video.title}
+        </h4>
+        <span className="text-xs text-gray-500 font-medium mt-auto">
+          {date}
+        </span>
+      </div>
+    </Link>
+  );
+}

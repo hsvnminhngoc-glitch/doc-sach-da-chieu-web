@@ -1,0 +1,6 @@
+{
+  "name": "Đọc Sách Đa Chiều",
+  "description": "Kênh Đọc Sách Đa Chiều ra đời với sứ mệnh giúp bạn \"Đọc ít hơn, hiểu nhiều hơn\".",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
