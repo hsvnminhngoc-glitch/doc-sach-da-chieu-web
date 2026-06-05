@@ -32,6 +32,7 @@ function generateSlug(text: string) {
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', true);
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Simple in-memory cache to avoid hitting YouTube API limits
@@ -187,7 +188,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
   app.get('/sitemap.xml', async (req, res) => {
     try {
-      const videos = await getVideos();
+      let videos: any[] = [];
+      try {
+        videos = await getVideos();
+      } catch (err: any) {
+        console.warn('Could not fetch videos for sitemap, falling back to basic sitemap:', err.message);
+      }
+      
       const baseUrl = `https://${req.get('host')}`;
       
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -360,6 +367,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    // Warm up the video cache for fast subsequent API/sitemap responses
+    getVideos().catch(err => console.error("Initial cache warmup failed:", err.message));
   });
 }
 
