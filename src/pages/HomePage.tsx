@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { AlertCircle, Loader2, Search, ArrowUp } from 'lucide-react';
+import { AlertCircle, Loader2, Search, ArrowUp, X } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import { useSearchParams } from 'react-router';
 import { Video } from '../types';
 import { VideoCard } from '../components/VideoCard';
 import { motion } from 'motion/react';
@@ -10,10 +11,43 @@ export function HomePage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
+  const activeCategory = searchParams.get('category') || 'all';
+  
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localQuery !== searchQuery) {
+        const newParams = new URLSearchParams(searchParams);
+        if (localQuery) {
+          newParams.set('q', localQuery);
+        } else {
+          newParams.delete('q');
+        }
+        setSearchParams(newParams, { replace: true });
+      }
+    }, 500);
+  }, [localQuery, searchQuery, searchParams, setSearchParams]);
+  
   const [visibleCount, setVisibleCount] = useState(9); // Số video hiển thị ban đầu
   const [showBackToTop, setShowBackToTop] = useState(false);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalQuery(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setLocalQuery('');
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('q');
+    setSearchParams(newParams, { replace: true });
+  };
 
   useEffect(() => {
     async function fetchVideos() {
@@ -35,7 +69,15 @@ export function HomePage() {
     fetchVideos();
   }, []);
 
-  // Reset filter display count when category or search changes
+  const handleCategoryChange = (categoryId: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (categoryId === 'all') {
+      newParams.delete('category');
+    } else {
+      newParams.set('category', categoryId);
+    }
+    setSearchParams(newParams);
+  };
   useEffect(() => {
     setVisibleCount(9);
   }, [activeCategory, searchQuery]);
@@ -55,7 +97,8 @@ export function HomePage() {
       const category = CATEGORIES.find(c => c.id === activeCategory);
       if (category) {
         result = result.filter(video => {
-          const textToSearch = `${video.title} ${video.playlistTitle || ''}`.toLowerCase();
+          const tagsStr = (video.tags || []).join(' ');
+          const textToSearch = `${video.title} ${video.playlistTitle || ''} ${tagsStr}`.toLowerCase();
           return category.keywords.some(keyword => textToSearch.includes(keyword.toLowerCase()));
         });
       }
@@ -181,11 +224,20 @@ export function HomePage() {
           <input
             type="text"
             placeholder="Tìm kiếm sách, tác giả, từ khóa..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-sm transition-all text-gray-900"
+            value={localQuery}
+            onChange={handleSearchChange}
+            className="w-full pl-12 pr-12 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-sm transition-all text-gray-900"
           />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          {localQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Xóa tìm kiếm"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -195,7 +247,7 @@ export function HomePage() {
           {CATEGORIES.map(category => (
             <button
               key={category.id}
-              onClick={() => setActiveCategory(category.id)}
+              onClick={() => handleCategoryChange(category.id)}
               className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-medium transition-colors duration-200 border cursor-pointer
                 ${activeCategory === category.id 
                   ? 'bg-red-600 text-white border-red-600 shadow-md' 
@@ -268,7 +320,7 @@ export function HomePage() {
                 Chưa có video review nào thuộc thể loại <strong>{CATEGORIES.find(c => c.id === activeCategory)?.name}</strong> trên kênh của mình.
               </p>
               <button 
-                onClick={() => setActiveCategory('all')}
+                onClick={() => handleCategoryChange('all')}
                 className="mt-6 px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Xem tất cả video

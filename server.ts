@@ -348,7 +348,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       res.status(200).set({ 
         'Content-Type': 'text/html',
-        'Cache-Control': 'public, max-age=300' 
+        'Cache-Control': 'no-cache, no-store, must-revalidate' 
       }).end(html);
     } catch (e: any) {
       if (vite) {

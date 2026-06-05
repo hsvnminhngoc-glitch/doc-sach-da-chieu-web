@@ -75,10 +75,22 @@ export function VideoDetailPage() {
   const { relatedNewVideos, popularVideos, currentCategories, randomVideos } = useMemo(() => {
     if (!video || !allVideos.length) return { relatedNewVideos: [], popularVideos: [], currentCategories: [], randomVideos: [] };
 
-    // Determine current video's categories based on title & playlist
-    const textToSearch = `${video.title} ${video.playlistTitle || ''}`.toLowerCase();
+    // Determine current video's categories based on title & playlist & tags
+    const tagsStr = (video.tags || []).join(' ');
+    const textToSearch = `${video.title} ${video.playlistTitle || ''} ${tagsStr}`.toLowerCase();
     let currentCategories = CATEGORIES.filter(c => c.id !== 'all' && c.keywords.some(k => textToSearch.includes(k.toLowerCase())));
     if (currentCategories.length === 0) currentCategories = [CATEGORIES[0]]; // fallback to 'all'
+
+    // Get all videos that share the same category
+    const sameCategoryVideosRaw = allVideos.filter(v => {
+      if (v.id === video.id) return false;
+      const vTagsStr = (v.tags || []).join(' ');
+      const vText = `${v.title} ${v.playlistTitle || ''} ${vTagsStr}`.toLowerCase();
+      if (currentCategories[0].id !== 'all') {
+        return currentCategories.some(c => c.keywords.some(k => vText.includes(k.toLowerCase())));
+      }
+      return true;
+    });
 
     // Find other videos using a simple scoring algorithm based on matching tags, playlist, and category
     const scoredVideos = allVideos
@@ -102,7 +114,8 @@ export function VideoDetailPage() {
         }
         
         // 3. Category keywords overlap
-        const vText = `${v.title} ${v.playlistTitle || ''}`.toLowerCase();
+        const vTagsStr = (v.tags || []).join(' ');
+        const vText = `${v.title} ${v.playlistTitle || ''} ${vTagsStr}`.toLowerCase();
         if (currentCategories[0].id !== 'all') {
            const matchesCategory = currentCategories.some(c => c.keywords.some(k => vText.includes(k.toLowerCase())));
            if (matchesCategory) {
@@ -127,13 +140,13 @@ export function VideoDetailPage() {
 
     const sameCategoryVideos = scoredVideos.map(item => item.video);
 
-    // Related new: sorted by date (already sorted by server), take 5
+    // Related new: sorted by score (relevancy) and date, take 5
     const relatedNew = sameCategoryVideos.slice(0, 5);
 
-    // Popular videos: sorted by views, take 4
-    const popular = [...sameCategoryVideos]
+    // Popular videos: strictly sorted by views among all videos in the same category
+    const popular = [...sameCategoryVideosRaw]
       // Show popular videos regardless of whether they are in relatedNew
-      .sort((a, b) => parseInt(b.viewCount || '0') - parseInt(a.viewCount || '0'))
+      .sort((a, b) => parseInt(b.viewCount || '0', 10) - parseInt(a.viewCount || '0', 10))
       .slice(0, 4);
 
     let randomVideos: Video[] = [];
@@ -347,12 +360,12 @@ export function VideoDetailPage() {
               {((currentCategories && currentCategories.length > 0 && currentCategories[0].id !== 'all') || video.playlistTitle) && (
                 <>
                   <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300"></div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {currentCategories[0].id !== 'all' ? (
                       currentCategories.map(cat => (
-                        <span key={cat.id} className="inline-flex py-1 px-2.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-100">
+                        <Link to={`/?category=${cat.id}`} key={cat.id} className="inline-flex py-1 px-2.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-100 hover:bg-blue-100 transition-colors">
                           {cat.name}
-                        </span>
+                        </Link>
                       ))
                     ) : (
                       <span className="inline-flex py-1 px-2.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-100 uppercase text-[10px] tracking-wider">
