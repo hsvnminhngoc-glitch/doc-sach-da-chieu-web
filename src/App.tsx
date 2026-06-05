@@ -42,7 +42,7 @@ function HeaderSearch() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="hidden md:flex relative max-w-sm w-full mx-4">
+    <form onSubmit={handleSubmit} className="flex relative max-w-sm w-full mx-2 sm:mx-4">
       <input
         type="text"
         placeholder="Tìm kiếm..."

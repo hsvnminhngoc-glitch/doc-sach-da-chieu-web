@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { AlertCircle, Loader2, Search, ArrowUp, X } from 'lucide-react';
+import { AlertCircle, Loader2, Search, ArrowUp, X, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useSearchParams } from 'react-router';
 import { Video } from '../types';
 import { VideoCard } from '../components/VideoCard';
+import { CompactVideoCard } from '../components/CompactVideoCard';
 import { motion } from 'motion/react';
 import { CATEGORIES } from '../constants';
 
@@ -16,6 +17,14 @@ export function HomePage() {
   const activeCategory = searchParams.get('category') || 'all';
   
   const [localQuery, setLocalQuery] = useState(searchQuery);
+  const [expandedRankings, setExpandedRankings] = useState<Record<string, boolean>>({});
+
+  const toggleRankingExpand = (categoryId: string) => {
+    setExpandedRankings(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
+  };
 
   useEffect(() => {
     setLocalQuery(searchQuery);
@@ -108,6 +117,28 @@ export function HomePage() {
   }, [videos, activeCategory, searchQuery]);
 
   const visibleVideos = filteredVideos.slice(0, visibleCount);
+
+  const categoryRankings = useMemo(() => {
+    const rankings: Record<string, Video[]> = {};
+    CATEGORIES.forEach(cat => {
+      if (cat.id === 'all') return;
+      
+      const catVideos = videos.filter(video => {
+        const tagsStr = (video.tags || []).join(' ');
+        const textToSearch = `${video.title} ${video.playlistTitle || ''} ${tagsStr}`.toLowerCase();
+        return cat.keywords.some(keyword => textToSearch.includes(keyword.toLowerCase()));
+      });
+
+      const top10 = catVideos
+        .sort((a, b) => parseInt(b.viewCount || '0', 10) - parseInt(a.viewCount || '0', 10))
+        .slice(0, 10);
+        
+      if (top10.length > 0) {
+        rankings[cat.id] = top10;
+      }
+    });
+    return rankings;
+  }, [videos]);
 
   // Intersection Observer for infinite scrolling
   const observerTarget = React.useRef<HTMLDivElement>(null);
@@ -242,8 +273,8 @@ export function HomePage() {
       </div>
 
       {/* Categories Section */}
-      <div className="mb-10 overflow-x-auto pb-4 hide-scrollbar">
-        <div className="flex gap-3">
+      <div className="mb-10">
+        <div className="flex flex-wrap gap-3">
           {CATEGORIES.map(category => (
             <button
               key={category.id}
@@ -283,51 +314,98 @@ export function HomePage() {
           </div>
         </div>
       ) : (
-        <section aria-labelledby="latest-videos-heading">
-          <div className="flex justify-between flex-wrap items-end mb-8 gap-4">
-            <h3 id="latest-videos-heading" className="text-2xl font-bold text-gray-900">
-              {activeCategory === 'all' ? 'Video mới nhất' : `Sách thể loại: ${CATEGORIES.find(c => c.id === activeCategory)?.name}`}
-            </h3>
-            <p className="text-sm font-medium text-gray-500">
-              Hiển thị {filteredVideos.length} video
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {visibleVideos.map((video, index) => (
-              <motion.div
-                key={video.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <VideoCard video={video} />
-              </motion.div>
-            ))}
-          </div>
-
-          {visibleCount < filteredVideos.length && (
-            <div ref={observerTarget} className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-            </div>
+        <>
+          {/* Bảng xếp hạng */}
+          {!loading && !error && Object.keys(categoryRankings).length > 0 && activeCategory === 'all' && searchQuery.trim() === '' && (
+            <section className="mb-20 pb-16 border-b border-gray-200" aria-labelledby="rankings-heading">
+              <div className="text-center mb-12">
+                <h2 id="rankings-heading" className="text-3xl font-bold text-gray-900 mb-4 tracking-tight">Bảng Xếp Hạng Sách</h2>
+                <p className="text-gray-500 max-w-2xl mx-auto">Top 10 cuốn sách được xem nhiều nhất theo từng thể loại.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-12">
+                {CATEGORIES.filter(c => c.id !== 'all' && categoryRankings[c.id]).map(category => (
+                  <div key={category.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                      <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 shrink-0">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 line-clamp-1">{category.name}</h3>
+                    </div>
+                    <div className="space-y-4 flex-1">
+                      {(expandedRankings[category.id] ? categoryRankings[category.id] : categoryRankings[category.id].slice(0, 3)).map((video, index) => (
+                        <CompactVideoCard key={video.id} video={video} rank={index + 1} />
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-50 flex flex-col gap-2">
+                       {categoryRankings[category.id].length > 3 && (
+                         <button 
+                           onClick={() => toggleRankingExpand(category.id)} 
+                           className="flex flex-row items-center justify-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors py-1 w-full"
+                         >
+                           {expandedRankings[category.id] ? (
+                             <>Rút gọn <ChevronUp className="w-4 h-4" /></>
+                           ) : (
+                             <>Xem thêm {categoryRankings[category.id].length - 3} sách <ChevronDown className="w-4 h-4" /></>
+                           )}
+                         </button>
+                       )}
+                       <button onClick={() => handleCategoryChange(category.id)} className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors py-1 w-full text-center">
+                         Xem tất cả sách {category.name} →
+                       </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
-          {filteredVideos.length === 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 text-center py-20 flex flex-col items-center shadow-sm">
-              <Search className="w-12 h-12 text-gray-300 mb-4" />
-              <h4 className="text-lg font-bold text-gray-900 mb-2">Không tìm thấy video nào</h4>
-              <p className="text-gray-500">
-                Chưa có video review nào thuộc thể loại <strong>{CATEGORIES.find(c => c.id === activeCategory)?.name}</strong> trên kênh của mình.
+          {/* Video section */}
+          <section aria-labelledby="latest-videos-heading">
+            <div className="flex justify-between flex-wrap items-end mb-8 gap-4">
+              <h3 id="latest-videos-heading" className="text-2xl font-bold text-gray-900">
+                {activeCategory === 'all' ? 'Video mới nhất' : `Sách thể loại: ${CATEGORIES.find(c => c.id === activeCategory)?.name}`}
+              </h3>
+              <p className="text-sm font-medium text-gray-500">
+                Hiển thị {filteredVideos.length} video
               </p>
-              <button 
-                onClick={() => handleCategoryChange('all')}
-                className="mt-6 px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Xem tất cả video
-              </button>
             </div>
-          )}
-        </section>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {visibleVideos.map((video, index) => (
+                <motion.div
+                  key={video.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                >
+                  <VideoCard video={video} />
+                </motion.div>
+              ))}
+            </div>
+
+            {visibleCount < filteredVideos.length && (
+              <div ref={observerTarget} className="flex justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+              </div>
+            )}
+
+            {filteredVideos.length === 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 text-center py-20 flex flex-col items-center shadow-sm">
+                <Search className="w-12 h-12 text-gray-300 mb-4" />
+                <h4 className="text-lg font-bold text-gray-900 mb-2">Không tìm thấy video nào</h4>
+                <p className="text-gray-500">
+                  Chưa có video review nào thuộc thể loại <strong>{CATEGORIES.find(c => c.id === activeCategory)?.name}</strong> trên kênh của mình.
+                </p>
+                <button 
+                  onClick={() => handleCategoryChange('all')}
+                  className="mt-6 px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Xem tất cả video
+                </button>
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {/* Nút Lên đầu trang */}

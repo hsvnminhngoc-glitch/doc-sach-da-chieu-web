@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router';
 import { Helmet } from 'react-helmet-async';
-import { Loader2, AlertCircle, ArrowLeft, Calendar, Youtube, Eye, ThumbsUp, MessageSquare, ShoppingCart, ExternalLink, Share2, Check } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Calendar, Youtube, Eye, ThumbsUp, MessageSquare, ShoppingCart, ExternalLink, Share2, Check, Facebook, Twitter } from 'lucide-react';
 import { Video } from '../types';
 import { CATEGORIES } from '../constants';
 import { formatNumber } from '../utils';
@@ -341,18 +341,41 @@ export function VideoDetailPage() {
               
               <div className="hidden sm:block w-1 h-1 rounded-full bg-gray-300"></div>
               
-              <div className="relative group flex items-center">
-                <button
-                  onClick={handleShare}
-                  className="flex items-center gap-1.5 font-medium text-gray-700 hover:text-red-600 transition-all p-1.5 -ml-1.5 rounded-md hover:bg-red-50"
-                  aria-label="Chia sẻ video"
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-medium text-gray-700 mr-1">Chia sẻ:</span>
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${origin}/video/${video.slug ? video.slug + '-' : ''}${video.id}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                  aria-label="Chia sẻ lên Facebook"
+                  title="Chia sẻ trên Facebook"
                 >
-                  {isCopied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
-                  {isCopied ? <span className="text-green-600">Đã chép link</span> : 'Chia sẻ'}
-                </button>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-lg">
-                  {isCopied ? 'Đã chép URL!' : 'Copy link video'}
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-[5px] border-transparent border-t-gray-800"></div>
+                  <Facebook className="w-4 h-4" />
+                </a>
+                <a
+                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`${origin}/video/${video.slug ? video.slug + '-' : ''}${video.id}`)}&text=${encodeURIComponent(video.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-gray-500 hover:text-sky-500 hover:bg-sky-50 rounded-full transition-colors"
+                  aria-label="Chia sẻ lên Twitter"
+                  title="Chia sẻ trên Twitter"
+                >
+                  <Twitter className="w-4 h-4" />
+                </a>
+                <div className="relative group flex items-center">
+                  <button
+                    onClick={handleShare}
+                    className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
+                    aria-label="Copy link video"
+                    title="Copy link"
+                  >
+                    {isCopied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
+                  </button>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-800 text-white text-xs font-medium rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-lg">
+                    {isCopied ? 'Đã chép URL!' : 'Copy link video'}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-[5px] border-transparent border-t-gray-800"></div>
+                  </div>
                 </div>
               </div>
               

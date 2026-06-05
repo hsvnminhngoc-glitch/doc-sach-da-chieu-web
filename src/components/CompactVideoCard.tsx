@@ -4,14 +4,19 @@ import { Link } from 'react-router';
 import { Video } from '../types';
 import { OptimizedImage } from './OptimizedImage';
 
-export function CompactVideoCard({ video }: { video: Video }) {
+export function CompactVideoCard({ video, rank }: { video: Video; rank?: number }) {
   const date = new Date(video.publishedAt).toLocaleDateString('vi-VN', {
     month: 'short',
     day: 'numeric'
   });
 
   return (
-    <Link to={`/video/${video.slug ? video.slug + '-' : ''}${video.id}`} className="group flex gap-3 block hover:bg-gray-50 p-2 rounded-lg transition-colors -mx-2">
+    <Link to={`/video/${video.slug ? video.slug + '-' : ''}${video.id}`} className="group flex gap-3 block hover:bg-gray-50 p-2 rounded-lg transition-colors -mx-2 items-center">
+      {rank !== undefined && (
+        <div className="shrink-0 w-6 font-bold text-lg text-center text-gray-400 group-hover:text-red-500 transition-colors">
+          {rank}
+        </div>
+      )}
       <div className="relative w-28 md:w-32 aspect-video bg-gray-100 rounded-lg overflow-hidden shrink-0">
         <OptimizedImage 
           videoId={video.id}
@@ -28,9 +33,10 @@ export function CompactVideoCard({ video }: { video: Video }) {
           {video.title}
         </h4>
         <span className="text-xs text-gray-500 font-medium mt-auto">
-          {date}
+          {video.viewCount ? `${parseInt(video.viewCount).toLocaleString('vi-VN')} lượt xem • ` : ''}{date}
         </span>
       </div>
     </Link>
   );
 }
+
