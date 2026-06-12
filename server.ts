@@ -33,6 +33,29 @@ function generateSlug(text: string) {
 async function startServer() {
   const app = express();
   app.set('trust proxy', true);
+
+  // SEO: Redirect www, docsachdachieu.com, and HTTP to https://docsachthayban.asia
+  app.use((req, res, next) => {
+    const host = req.get('host');
+    const isProductionDocsachDomain = host && (
+      host === 'docsachdachieu.com' ||
+      host === 'www.docsachdachieu.com' ||
+      host === 'www.docsachthayban.asia'
+    );
+    
+    // Redirect to primary domain
+    if (isProductionDocsachDomain) {
+      return res.redirect(301, `https://docsachthayban.asia${req.originalUrl}`);
+    }
+    
+    // HTTP to HTTPS (on production custom domain only, ignoring Cloud Run internal and dev URL ports if not on HTTPS)
+    if (host === 'docsachthayban.asia' && req.protocol === 'http' && req.get('X-Forwarded-Proto') !== 'https') {
+      return res.redirect(301, `https://docsachthayban.asia${req.originalUrl}`);
+    }
+    
+    next();
+  });
+
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Simple in-memory cache to avoid hitting YouTube API limits
@@ -177,7 +200,7 @@ async function startServer() {
   });
 
   app.get('/robots.txt', (req, res) => {
-    const baseUrl = `https://${req.get('host')}`;
+    const baseUrl = 'https://docsachthayban.asia';
     const robotsTxt = `User-agent: *
 Allow: /
 
@@ -195,14 +218,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.warn('Could not fetch videos for sitemap, falling back to basic sitemap:', err.message);
       }
       
-      const baseUrl = `https://${req.get('host')}`;
+      const baseUrl = 'https://docsachthayban.asia';
       
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
       xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
       
       // Add home page
       xml += '  <url>\n';
-      xml += `    <loc>${baseUrl}/</loc>\n`;
+      xml += `    <loc>${baseUrl}</loc>\n`;
       xml += '    <changefreq>daily</changefreq>\n';
       xml += '    <priority>1.0</priority>\n';
       xml += '  </url>\n';

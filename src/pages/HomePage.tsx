@@ -42,6 +42,7 @@ export function HomePage() {
         setSearchParams(newParams, { replace: true });
       }
     }, 500);
+    return () => clearTimeout(timer);
   }, [localQuery, searchQuery, searchParams, setSearchParams]);
   
   const [visibleCount, setVisibleCount] = useState(9); // Số video hiển thị ban đầu
@@ -184,7 +185,7 @@ export function HomePage() {
     });
   };
 
-  const origin = 'https://docsachdachieu.com';
+  const origin = 'https://docsachthayban.asia';
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

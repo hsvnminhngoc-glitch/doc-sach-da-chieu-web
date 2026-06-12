@@ -20,7 +20,7 @@ export function VideoDetailPage() {
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  const origin = 'https://docsachdachieu.com';
+  const origin = 'https://docsachthayban.asia';
 
   const handleShare = async () => {
     if (!video) return;
